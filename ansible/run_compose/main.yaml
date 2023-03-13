@@ -1,0 +1,28 @@
+# roles/docker-stack/tasks/main.yml
+---
+- name: Install .NET Core
+  community.general.command:
+    cmd: "curl https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --version {{ dotnet_version }} --install-dir /usr/share/dotnet"
+
+- name: Create directories for Docker stack
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "{{ docker_compose_dir }}"
+    - "{{ docker_compose_dir }}/data"
+    - "{{ docker_compose_dir }}/logs"
+
+- name: Generate docker-compose.yml file from template
+  template:
+    src: "docker-compose.j2"
+    dest: "{{ docker_compose_dir }}/docker-compose.yml"
+
+- name: Start Docker stack
+  community.docker_compose:
+    project_name: "{{ docker_compose_project_name }}"
+    project_directory: "{{ docker_compose_dir }}"
+    file: "{{ docker_compose_dir }}/docker-compose.yml"
+    up: yes
+    detach: yes
+    log_driver: "journald"

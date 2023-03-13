@@ -1,0 +1,68 @@
+---
+- name: Install Docker ON ubuntu
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    docker_compose_version: "1.29.2"
+  tasks:
+    - name: Install dependencies
+      apt:
+        name:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg2
+        - software-properties-common
+      state: present
+      update_cache: no
+    - name: Install Docker
+      remote_user: ubuntu
+      block:
+        - name: Add Docker GPG
+          apt_key:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            state: present
+        - name: Add Docker repository
+          apt_repository:
+            repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+            state: present
+        - name: Update apt cache
+          apt:
+            update_cache: yes
+        - name: Install Docker
+          apt:
+            name: docker-ce
+            state: present
+        - name: Add remote "ubuntu" user to "docker" group
+          remote_user: ubuntu
+          user:
+            name: "ubuntu"
+            group: "docker"
+            append: yes
+        - name: Verify Docker installation
+          command: docker --version
+      when: ansible_os_family == "Debian"
+    - name: Install Docker Compose
+      block:
+        - name: Download Docker Compose
+          get_url:
+            url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-Linux-x86_64"
+            dest: /usr/local/bin/docker-compose
+            mode: "a+x"
+        - name: Verify Docker Compose installation
+          command: docker-compose --version
+      when: ansible_os_family == "Debian"
+    - name: Run and enable docker
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+- name: Deploy Docker stack
+  hosts: all
+  become: true
+  vars_files:
+    - vars.yml
+  roles:
+    - role: run_compose
